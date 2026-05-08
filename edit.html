@@ -36,15 +36,15 @@
         </div>
       </div>
 
-      <!-- 图片上传区（替换原来的链接输入） -->
+      <!-- 菜谱图片 限制只选 jpg jpeg png gif -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
-        <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png,image/gif" class="w-full border rounded-lg px-3 py-2">
-        <!-- 预览图 -->
+        <input type="file" id="imageFile" 
+               accept="image/jpeg,image/jpg,image/png,image/gif" 
+               class="w-full border rounded-lg px-3 py-2">
         <div id="previewBox" class="mt-2 hidden">
           <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
         </div>
-        <!-- 隐藏域存最终链接 -->
         <input type="hidden" id="cover_img">
       </div>
 
@@ -85,18 +85,15 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 核心：上传图片到 Storage 并返回公开链接
+    // 上传图片到存储桶
     async function uploadImage(file) {
-      // 文件名：时间戳+原名，避免重复
       const fileName = `${Date.now()}_${file.name}`;
-      // 上传到 recipe-images 桶
       const { data, error } = await sb.storage
         .from('recipe-images')
         .upload(fileName, file, { contentType: file.type });
 
       if (error) throw error;
 
-      // 生成公开访问链接
       const { data: { publicUrl } } = sb.storage
         .from('recipe-images')
         .getPublicUrl(fileName);
@@ -104,10 +101,18 @@
       return publicUrl;
     }
 
-    // 图片选择→预览→自动上传
+    // 选择图片 + 格式校验 + 预览 + 自动上传
     document.getElementById('imageFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
+      // 允许的图片类型
+      const allowTypes = ['image/jpeg','image/jpg','image/png','image/gif'];
+      if (!allowTypes.includes(file.type)) {
+        alert('只支持 JPG、JPEG、PNG、GIF 图片格式');
+        e.target.value = '';
+        return;
+      }
 
       // 本地预览
       const reader = new FileReader();
@@ -117,7 +122,7 @@
       };
       reader.readAsDataURL(file);
 
-      // 上传到 Supabase 并把链接填入隐藏域
+      // 自动上传
       try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
@@ -127,6 +132,7 @@
       }
     });
 
+    // 编辑回显数据
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
@@ -144,7 +150,6 @@
       document.getElementById('description').value = data.description || '';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
-      // 编辑时回显已有图片
       if (data.cover_img) {
         document.getElementById('cover_img').value = data.cover_img;
         document.getElementById('previewImg').src = data.cover_img;
@@ -154,6 +159,7 @@
       document.getElementById('steps').value = arrayToText(data.steps);
     }
 
+    // 表单提交保存
     document.getElementById('recipeForm').addEventListener('submit', async function(e){
       e.preventDefault();
 
@@ -163,7 +169,7 @@
         description: document.getElementById('description').value,
         cook_time: Number(document.getElementById('cook_time').value),
         difficulty: document.getElementById('difficulty').value,
-        cover_img: document.getElementById('cover_img').value, // 用上传后的公开链接
+        cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value)
       };
