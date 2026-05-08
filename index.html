@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家庭共享食谱</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-4xl mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-green-700">🍽️ 家庭共享食谱</h1>
+      <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg">+ 添加菜谱</a>
+    </div>
+
+    <div id="recipeList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      加载中...
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadRecipes() {
+      const { data } = await sb
+        .from('recipes')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      renderList(data);
+    }
+
+    function renderList(list) {
+      const container = document.getElementById('recipeList');
+      if (!list || list.length === 0) {
+        container.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-500">暂无菜谱，快去添加第一个吧</div>';
+        return;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const img = item.cover_img || 'https://picsum.photos/400/220';
+        html += `
+          <a href="detail.html?id=${item.id}" class="bg-white rounded-xl shadow overflow-hidden block">
+            <img src="${img}" class="w-full h-48 object-cover bg-gray-200" loading="lazy">
+            <div class="p-4">
+              <h2 class="font-bold text-lg">${item.title}</h2>
+              <p class="text-gray-500 text-sm mt-1 line-clamp-2">${item.description || '暂无简介'}</p>
+              <div class="mt-2 text-sm text-gray-600">
+                ⏱️ ${item.cook_time || 0}分钟 · 📈 ${item.difficulty || '普通'}
+              </div>
+            </div>
+          </a>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    sb.channel('recipe-change')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'recipes'
+      }, () => {
+        loadRecipes();
+      })
+      .subscribe();
+
+    loadRecipes();
+  </script>
+</body>
+</html>
