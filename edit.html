@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新增/编辑菜谱</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-2xl mx-auto bg-white p-5 min-h-screen">
+    <h1 class="text-xl font-bold mb-6" id="pageTitle">新增菜谱</h1>
+
+    <form id="recipeForm">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">菜谱名称</label>
+        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">简介描述</label>
+        <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="简单介绍口味、特点"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">烹饪时长(分钟)</label>
+          <input type="number" id="cook_time" class="w-full border rounded-lg px-3 py-2" value="10">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">难度</label>
+          <select id="difficulty" class="w-full border rounded-lg px-3 py-2">
+            <option>简单</option>
+            <option>中等</option>
+            <option>困难</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 图片上传区（替换原来的链接输入） -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
+        <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
+        <!-- 预览图 -->
+        <div id="previewBox" class="mt-2 hidden">
+          <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
+        </div>
+        <!-- 隐藏域存最终链接 -->
+        <input type="hidden" id="cover_img">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">食材清单（每行一条）</label>
+        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="番茄 2个&#10;鸡蛋 3个"></textarea>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-medium mb-1">烹饪步骤（每行一步）</label>
+        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2" placeholder="鸡蛋打散炒熟盛出&#10;番茄下锅炒出汁"></textarea>
+      </div>
+
+      <input type="hidden" id="editId">
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg">保存提交</button>
+        <a href="index.html" class="flex-1 bg-gray-200 text-center py-2 rounded-lg">取消返回</a>
+      </div>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    function getQuery(name) {
+      let p = new URLSearchParams(location.search);
+      return p.get(name);
+    }
+
+    function textToArray(str) {
+      return str.split('\n').map(item=>item.trim()).filter(item=>item);
+    }
+
+    function arrayToText(arr) {
+      return Array.isArray(arr) ? arr.join('\n') : '';
+    }
+
+    // 核心：上传图片到 Storage 并返回公开链接
+    async function uploadImage(file) {
+      // 文件名：时间戳+原名，避免重复
+      const fileName = `${Date.now()}_${file.name}`;
+      // 上传到 recipe-images 桶
+      const { data, error } = await sb.storage
+        .from('recipe-images')
+        .upload(fileName, file, { contentType: file.type });
+
+      if (error) throw error;
+
+      // 生成公开访问链接
+      const { data: { publicUrl } } = sb.storage
+        .from('recipe-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    }
+
+    // 图片选择→预览→自动上传
+    document.getElementById('imageFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // 本地预览
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('previewImg').src = ev.target.result;
+        document.getElementById('previewBox').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      // 上传到 Supabase 并把链接填入隐藏域
+      try {
+        const url = await uploadImage(file);
+        document.getElementById('cover_img').value = url;
+        console.log('上传成功：', url);
+      } catch (err) {
+        alert('图片上传失败：' + err.message);
+      }
+    });
+
+    async function loadEditData() {
+      let id = getQuery('id');
+      if(!id) return;
+
+      document.getElementById('pageTitle').innerText = '编辑菜谱';
+      document.getElementById('editId').value = id;
+
+      const {data} = await sb
+        .from('recipes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      document.getElementById('title').value = data.title || '';
+      document.getElementById('description').value = data.description || '';
+      document.getElementById('cook_time').value = data.cook_time || 10;
+      document.getElementById('difficulty').value = data.difficulty || '简单';
+      // 编辑时回显已有图片
+      if (data.cover_img) {
+        document.getElementById('cover_img').value = data.cover_img;
+        document.getElementById('previewImg').src = data.cover_img;
+        document.getElementById('previewBox').classList.remove('hidden');
+      }
+      document.getElementById('ingredients').value = arrayToText(data.ingredients);
+      document.getElementById('steps').value = arrayToText(data.steps);
+    }
+
+    document.getElementById('recipeForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+
+      let id = document.getElementById('editId').value;
+      let postData = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        cook_time: Number(document.getElementById('cook_time').value),
+        difficulty: document.getElementById('difficulty').value,
+        cover_img: document.getElementById('cover_img').value, // 用上传后的公开链接
+        ingredients: textToArray(document.getElementById('ingredients').value),
+        steps: textToArray(document.getElementById('steps').value)
+      };
+
+      if(id){
+        await sb.from('recipes').update(postData).eq('id',id);
+      }else{
+        await sb.from('recipes').insert([postData]);
+      }
+
+      location.href = 'index.html';
+    });
+
+    loadEditData();
+  </script>
+</body>
+</html>
