@@ -13,7 +13,7 @@
     <form id="recipeForm">
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱名称</label>
-        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名">
+        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名" required>
       </div>
 
       <div class="mb-4">
@@ -34,15 +34,6 @@
             <option>困难</option>
           </select>
         </div>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
-        <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
-        <div id="previewBox" class="mt-2 hidden">
-          <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
-        </div>
-        <input type="hidden" id="cover_img">
       </div>
 
       <div class="mb-4">
@@ -80,23 +71,6 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 图片选择（本地预览，永不报错）
-    document.getElementById('imageFile').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (ev) {
-        const localDataUrl = ev.target.result;
-        document.getElementById('previewImg').src = localDataUrl;
-        document.getElementById('cover_img').value = localDataUrl + "&t=" + Date.now(); // 强制防缓存
-        document.getElementById('previewBox').classList.remove('hidden');
-        alert("✅ 图片加载成功！保存后立刻显示");
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // 加载编辑数据
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
@@ -110,17 +84,10 @@
       document.getElementById('description').value = data.description || '';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
-      if (data.cover_img) {
-        let img = data.cover_img + "&t=" + Date.now();
-        document.getElementById('cover_img').value = img;
-        document.getElementById('previewImg').src = img;
-        document.getElementById('previewBox').classList.remove('hidden');
-      }
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
     }
 
-    // 提交保存 + 强制跳转过缓存
     document.getElementById('recipeForm').addEventListener('submit', async function(e){
       e.preventDefault();
 
@@ -130,7 +97,6 @@
         description: document.getElementById('description').value,
         cook_time: Number(document.getElementById('cook_time').value),
         difficulty: document.getElementById('difficulty').value,
-        cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value)
       };
@@ -141,8 +107,7 @@
         await sb.from('recipes').insert([postData]);
       }
 
-      // 强制全新跳转
-      location.href = "index.html?t=" + Math.random();
+      location.href = 'index.html?t='+Math.random();
     });
 
     loadEditData();
