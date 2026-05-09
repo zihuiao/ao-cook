@@ -36,7 +36,6 @@
         </div>
       </div>
 
-      <!-- 最终版：本地预览，永不报错 -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
         <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
@@ -81,21 +80,18 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // ==========================
-    // 终极方案：本地预览，永不报错！
-    // ==========================
+    // 图片选择（本地预览，永不报错）
     document.getElementById('imageFile').addEventListener('change', function (e) {
       const file = e.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = function (ev) {
-        // 直接用本地预览图，不上传服务器
         const localDataUrl = ev.target.result;
         document.getElementById('previewImg').src = localDataUrl;
-        document.getElementById('cover_img').value = localDataUrl;
+        document.getElementById('cover_img').value = localDataUrl + "&t=" + Date.now(); // 强制防缓存
         document.getElementById('previewBox').classList.remove('hidden');
-        alert("✅ 图片加载成功！直接保存即可");
+        alert("✅ 图片加载成功！保存后立刻显示");
       };
       reader.readAsDataURL(file);
     });
@@ -115,15 +111,16 @@
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
       if (data.cover_img) {
-        document.getElementById('cover_img').value = data.cover_img;
-        document.getElementById('previewImg').src = data.cover_img;
+        let img = data.cover_img + "&t=" + Date.now();
+        document.getElementById('cover_img').value = img;
+        document.getElementById('previewImg').src = img;
         document.getElementById('previewBox').classList.remove('hidden');
       }
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
     }
 
-    // 提交保存
+    // 提交保存 + 强制跳转过缓存
     document.getElementById('recipeForm').addEventListener('submit', async function(e){
       e.preventDefault();
 
@@ -144,7 +141,8 @@
         await sb.from('recipes').insert([postData]);
       }
 
-      location.href = 'index.html?t=' + Date.now();
+      // 强制全新跳转
+      location.href = "index.html?t=" + Math.random();
     });
 
     loadEditData();
