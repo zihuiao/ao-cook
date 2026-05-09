@@ -21,6 +21,20 @@
         <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="简单介绍口味、特点"></textarea>
       </div>
 
+      <!-- 新增：分类选择 -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">食材分类</label>
+        <select id="category" class="w-full border rounded-lg px-3 py-2">
+          <option value="猪肉">猪肉</option>
+          <option value="牛肉">牛肉</option>
+          <option value="鸡肉">鸡肉</option>
+          <option value="虾">虾</option>
+          <option value="蔬菜">蔬菜</option>
+          <option value="其他海鲜">其他海鲜</option>
+          <option value="小吃">小吃</option>
+        </select>
+      </div>
+
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label class="block text-sm font-medium mb-1">烹饪时长(分钟)</label>
@@ -30,8 +44,8 @@
           <label class="block text-sm font-medium mb-1">难度</label>
           <select id="difficulty" class="w-full border rounded-lg px-3 py-2">
             <option>简单</option>
-            <option>中等</option>
-            <option>困难</option>
+            <option>还行</option>
+            <option>也就有点难</option>
           </select>
         </div>
       </div>
@@ -56,14 +70,10 @@
       </div>
 
       <input type="hidden" id="editId">
-
-      <!-- 保存+取消 -->
       <div class="flex gap-3 mb-3">
         <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg">保存提交</button>
         <a href="index.html" class="flex-1 bg-gray-200 text-center py-2 rounded-lg">取消返回</a>
       </div>
-
-      <!-- 删除按钮（仅编辑时显示） -->
       <button type="button" id="deleteBtn" class="w-full bg-red-600 text-white py-2 rounded-lg hidden">🗑️ 删除此菜谱</button>
     </form>
   </div>
@@ -71,7 +81,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
@@ -85,7 +95,7 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // ========== 核心修复：手机JPEG压缩+转标准JPEG ==========
+    // 图片修复
     function fixImage(file) {
       return new Promise((resolve, reject) => {
         if (!file || !file.type.startsWith('image/')) return reject('不是图片');
@@ -93,54 +103,47 @@
         img.src = URL.createObjectURL(file);
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          // 限制最大边长，避免超大图
-          const max = 1200;
+          const ctx = canvas.getContext("2d");
           let w = img.width, h = img.height;
-          if (w>max || h>max) {
-            if (w>h) { h = h*max/w; w = max; }
-            else { w = w*max/h; h = max; }
+          const max = 1200;
+          if (w > max || h > max) {
+            const ratio = Math.min(max / w, max / h);
+            w *= ratio; h *= ratio;
           }
           canvas.width = w; canvas.height = h;
-          ctx.drawImage(img, 0, 0, w, h);
-          // 强制输出标准JPEG，质量0.8
-          canvas.toBlob(blob => {
-            const fixedFile = new File([blob], `img_${Date.now()}.jpeg`, { type: 'image/jpeg' });
-            resolve(fixedFile);
-          }, 'image/jpeg', 0.8);
+          ctx.drawImage(img, 0,0,w,h);
+          canvas.toBlob(b => {
+            resolve(new File([b], `img_${Date.now()}.jpg`, {type:"image/jpeg"}));
+          }, "image/jpeg", 0.8);
         };
-        img.onerror = () => reject('图片加载失败');
       });
     }
 
-    // 上传到Supabase
+    // 上传
     async function upload(file) {
-      const fixed = await fixImage(file);
-      const name = `img_${Date.now()}.jpeg`;
-      await sb.storage.from('recipe-images').upload(name, fixed, { upsert: true });
-      const { data } = sb.storage.from('recipe-images').getPublicUrl(name);
-      // 加时间戳防缓存
-      return data.publicUrl + '?_t=' + Date.now();
+      const f = await fixImage(file);
+      const name = `img_${Date.now()}.jpg`;
+      await sb.storage.from("recipe-images").upload(name, f, {upsert:true});
+      const { data } = sb.storage.from("recipe-images").getPublicUrl(name);
+      return data.publicUrl + "?t=" + Date.now();
     }
 
-    // 选择图片预览+上传
+    // 选择图片
     document.getElementById('imageFile').addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
-      // 预览
       const reader = new FileReader();
-      reader.onload = ev => {
-        document.getElementById('previewImg').src = ev.target.result;
+      reader.onload = e => {
+        document.getElementById('previewImg').src = e.target.result;
         document.getElementById('previewBox').classList.remove('hidden');
       };
       reader.readAsDataURL(file);
-      // 上传
       try {
         const url = await upload(file);
         document.getElementById('cover_img').value = url;
-        alert("✅ 图片上传成功");
-      } catch (err) {
-        alert("❌ 上传失败：" + err.message);
+        alert("✅ 上传成功");
+      } catch(e) {
+        alert("❌ 上传失败："+e.message);
       }
     });
 
@@ -148,56 +151,55 @@
     async function loadEdit() {
       const id = getQuery('id');
       if (!id) return;
-      document.getElementById('pageTitle').textContent = '编辑菜谱';
+      document.getElementById('pageTitle').innerText = "编辑菜谱";
       document.getElementById('editId').value = id;
-      // 显示删除按钮
       document.getElementById('deleteBtn').classList.remove('hidden');
 
       const { data } = await sb.from('recipes').select('*').eq('id', id).single();
       document.getElementById('title').value = data.title || '';
       document.getElementById('description').value = data.description || '';
+      document.getElementById('category').value = data.category || '肉类';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
 
       if (data.cover_img) {
-        const url = data.cover_img + '&_t=' + Date.now();
-        document.getElementById('cover_img').value = url;
-        document.getElementById('previewImg').src = url;
+        document.getElementById('cover_img').value = data.cover_img;
+        document.getElementById('previewImg').src = data.cover_img;
         document.getElementById('previewBox').classList.remove('hidden');
       }
     }
 
-    // 提交保存
+    // 提交
     document.getElementById('recipeForm').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('editId').value;
-      const postData = {
+      const d = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
+        category: document.getElementById('category').value,
         cook_time: +document.getElementById('cook_time').value,
         difficulty: document.getElementById('difficulty').value,
         cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value),
       };
-
       if (id) {
-        await sb.from('recipes').update(postData).eq('id', id);
+        await sb.from('recipes').update(d).eq('id', id);
       } else {
-        await sb.from('recipes').insert([postData]);
+        await sb.from('recipes').insert([d]);
       }
-      location.href = 'index.html?_t=' + Math.random();
+      location.href = "index.html?t="+Math.random();
     });
 
-    // 删除功能（编辑页内）
-    document.getElementById('deleteBtn').addEventListener('click', async () => {
+    // 删除
+    document.getElementById('deleteBtn').onclick = async () => {
       const id = document.getElementById('editId').value;
-      if (!id || !confirm('确定要删除这个菜谱吗？')) return;
+      if (!id || !confirm('确定删除？')) return;
       await sb.from('recipes').delete().eq('id', id);
-      location.href = 'index.html?_t=' + Math.random();
-    });
+      location.href = "index.html?t="+Math.random();
+    };
 
     loadEdit();
   </script>
