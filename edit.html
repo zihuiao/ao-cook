@@ -38,9 +38,7 @@
 
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
-        <input type="file" id="imageFile" 
-               accept="image/jpeg,image/jpg,image/png,image/gif" 
-               class="w-full border rounded-lg px-3 py-2">
+        <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
         <div id="previewBox" class="mt-2 hidden">
           <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
         </div>
@@ -75,50 +73,34 @@
       let p = new URLSearchParams(location.search);
       return p.get(name);
     }
-
     function textToArray(str) {
       return str.split('\n').map(item=>item.trim()).filter(item=>item);
     }
-
     function arrayToText(arr) {
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 自动清理中文文件名
-    function cleanFileName(fileName) {
-      return fileName.replace(/[^a-zA-Z0-9.]/g, '_');
-    }
-
-    // 上传图片（修复缓存+文件名）
+    // 最干净、不报错的上传方法（修复签名错误）
     async function uploadImage(file) {
-      const cleanName = cleanFileName(file.name);
-      const fileName = `${Date.now()}_${cleanName}`;
+      const fileName = "photo_" + Date.now() + ".jpg";
 
       const { data, error } = await sb.storage
-        .from('recipe-images')
-        .upload(fileName, file, { contentType: file.type });
+        .from("recipe-images")
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: true
+        });
 
       if (error) throw error;
 
-      const { data: { publicUrl } } = sb.storage
-        .from('recipe-images')
-        .getPublicUrl(fileName);
-
-      // 强制防缓存
-      return publicUrl + "?t=" + Date.now();
+      const url = `${SUPABASE_URL}/storage/v1/object/public/recipe-images/${fileName}`;
+      return url + "?t=" + Date.now();
     }
 
-    // 图片选择 + 上传
+    // 选择图片
     document.getElementById('imageFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
-      const allowTypes = ['image/jpeg','image/jpg','image/png','image/gif'];
-      if (!allowTypes.includes(file.type)) {
-        alert('只支持 JPG、JPEG、PNG、GIF 图片格式');
-        e.target.value = '';
-        return;
-      }
 
       // 预览
       const reader = new FileReader();
@@ -128,17 +110,16 @@
       };
       reader.readAsDataURL(file);
 
-      // 上传
       try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
-        console.log('上传成功：', url);
+        alert("图片上传成功！");
       } catch (err) {
         alert('图片上传失败：' + err.message);
       }
     });
 
-    // 编辑回显
+    // 加载编辑数据
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
@@ -146,20 +127,15 @@
       document.getElementById('pageTitle').innerText = '编辑菜谱';
       document.getElementById('editId').value = id;
 
-      const {data} = await sb
-        .from('recipes')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const {data} = await sb.from('recipes').select('*').eq('id', id).single();
 
       document.getElementById('title').value = data.title || '';
       document.getElementById('description').value = data.description || '';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
       if (data.cover_img) {
-        let imgUrl = data.cover_img + "?t=" + Date.now();
-        document.getElementById('cover_img').value = imgUrl;
-        document.getElementById('previewImg').src = imgUrl;
+        document.getElementById('cover_img').value = data.cover_img;
+        document.getElementById('previewImg').src = data.cover_img;
         document.getElementById('previewBox').classList.remove('hidden');
       }
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
