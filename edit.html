@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>新增/编辑菜谱 - 凹蛋的食谱</title>
+  <title>编辑菜谱 - 凹蛋的食谱</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
@@ -13,15 +13,14 @@
     <form id="recipeForm">
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱名称</label>
-        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名" required>
+        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" required>
       </div>
 
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">简介描述</label>
-        <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="简单介绍口味、特点"></textarea>
+        <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
       </div>
 
-      <!-- 分类下拉：改成你要的7个 -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">食材分类</label>
         <select id="category" class="w-full border rounded-lg px-3 py-2">
@@ -37,7 +36,7 @@
 
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label class="block text-sm font-medium mb-1">烹饪时长(分钟)</label>
+          <label class="block text-sm font-medium mb-1">烹饪时长</label>
           <input type="number" id="cook_time" class="w-full border rounded-lg px-3 py-2" value="10" required>
         </div>
         <div>
@@ -54,19 +53,19 @@
         <label class="block text-sm font-medium mb-1">菜谱图片</label>
         <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png" class="w-full border rounded-lg px-3 py-2">
         <div id="previewBox" class="mt-2 hidden">
-          <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
+          <img id="previewImg" class="h-32 object-cover rounded-lg border">
         </div>
         <input type="hidden" id="cover_img">
       </div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">食材清单（每行一条）</label>
-        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="食材 数量"></textarea>
+        <label class="block text-sm font-medium mb-1">食材清单</label>
+        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2"></textarea>
       </div>
 
       <div class="mb-6">
-        <label class="block text-sm font-medium mb-1">烹饪步骤（每行一步）</label>
-        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2" placeholder="步骤1&#10;步骤2"></textarea>
+        <label class="block text-sm font-medium mb-1">烹饪步骤</label>
+        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2"></textarea>
       </div>
 
       <input type="hidden" id="editId">
@@ -85,8 +84,7 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
-      let p = new URLSearchParams(location.search);
-      return p.get(name);
+      return new URLSearchParams(location.search).get(name);
     }
     function textToArray(str) {
       return str.split('\n').map(i => i.trim()).filter(Boolean);
@@ -95,9 +93,9 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
+    // 图片修复
     function fixImage(file) {
-      return new Promise((resolve, reject) => {
-        if (!file || !file.type.startsWith('image/')) return reject('不是图片');
+      return new Promise((resolve) => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
         img.onload = () => {
@@ -105,20 +103,17 @@
           const ctx = canvas.getContext("2d");
           let w = img.width, h = img.height;
           const max = 1200;
-          if (w > max || h > max) {
-            const ratio = Math.min(max / w, max / h);
-            w *= ratio; h *= ratio;
-          }
+          if (w > max || h > max) { const ratio = Math.min(max/w, max/h); w*=ratio; h*=ratio; }
           canvas.width = w; canvas.height = h;
-          ctx.drawImage(img, 0,0,w,h);
-          canvas.toBlob(b => {
-            resolve(new File([b], `img_${Date.now()}.jpg`, {type:"image/jpeg"}));
-          }, "image/jpeg", 0.8);
+          ctx.drawImage(img,0,0,w,h);
+          canvas.toBlob(b => resolve(new File([b],`img.jpg`,{type:"image/jpeg"})), "image/jpeg", 0.8);
         };
       });
     }
 
+    // 上传图片
     async function upload(file) {
+      if (!file) return "";
       const f = await fixImage(file);
       const name = `img_${Date.now()}.jpg`;
       await sb.storage.from("recipe-images").upload(name, f, {upsert:true});
@@ -126,6 +121,7 @@
       return data.publicUrl + "?_t=" + Date.now();
     }
 
+    // 选择图片
     document.getElementById('imageFile').addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
@@ -135,15 +131,12 @@
         document.getElementById('previewBox').classList.remove('hidden');
       };
       reader.readAsDataURL(file);
-      try {
-        const url = await upload(file);
-        document.getElementById('cover_img').value = url;
-        alert("✅ 上传成功");
-      } catch(e) {
-        alert("❌ 上传失败："+e.message);
-      }
+      const url = await upload(file);
+      document.getElementById('cover_img').value = url;
+      alert("✅ 图片上传成功");
     });
 
+    // 加载编辑数据
     async function loadEdit() {
       const id = getQuery('id');
       if (!id) return;
@@ -152,11 +145,11 @@
       document.getElementById('deleteBtn').classList.remove('hidden');
 
       const { data } = await sb.from('recipes').select('*').eq('id', id).single();
-      document.getElementById('title').value = data.title || '';
+      document.getElementById('title').value = data.title;
       document.getElementById('description').value = data.description || '';
-      document.getElementById('category').value = data.category || '其他';
-      document.getElementById('cook_time').value = data.cook_time || 10;
-      document.getElementById('difficulty').value = data.difficulty || '简单';
+      document.getElementById('category').value = data.category; // 分类正确回显
+      document.getElementById('cook_time').value = data.cook_time;
+      document.getElementById('difficulty').value = data.difficulty;
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
 
@@ -167,30 +160,35 @@
       }
     }
 
+    // 提交保存（分类已修复）
     document.getElementById('recipeForm').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('editId').value;
-      const d = {
+
+      const formData = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
-        category: document.getElementById('category').value,
-        cook_time: +document.getElementById('cook_time').value,
+        category: document.getElementById('category').value, // 正确获取分类
+        cook_time: parseInt(document.getElementById('cook_time').value),
         difficulty: document.getElementById('difficulty').value,
         cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value),
       };
+
       if (id) {
-        await sb.from('recipes').update(d).eq('id', id);
+        await sb.from('recipes').update(formData).eq('id', id);
       } else {
-        await sb.from('recipes').insert([d]);
+        await sb.from('recipes').insert([formData]);
       }
+
       location.href = "index.html?_t=" + Date.now();
     });
 
+    // 删除
     document.getElementById('deleteBtn').onclick = async () => {
       const id = document.getElementById('editId').value;
-      if (!id || !confirm('确定删除这个菜谱？')) return;
+      if (!confirm('确定删除？')) return;
       await sb.from('recipes').delete().eq('id', id);
       location.href = "index.html?_t=" + Date.now();
     };
