@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>新增/编辑菜谱</title>
+  <title>新增/编辑菜谱 - 凹蛋的食谱</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
@@ -21,7 +21,7 @@
         <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="简单介绍口味、特点"></textarea>
       </div>
 
-      <!-- 新增：分类选择 -->
+      <!-- 分类下拉：改成你要的7个 -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">食材分类</label>
         <select id="category" class="w-full border rounded-lg px-3 py-2">
@@ -31,7 +31,7 @@
           <option value="虾">虾</option>
           <option value="蔬菜">蔬菜</option>
           <option value="其他海鲜">其他海鲜</option>
-          <option value="小吃">小吃</option>
+          <option value="其他">其他</option>
         </select>
       </div>
 
@@ -44,8 +44,8 @@
           <label class="block text-sm font-medium mb-1">难度</label>
           <select id="difficulty" class="w-full border rounded-lg px-3 py-2">
             <option>简单</option>
-            <option>还行</option>
-            <option>也就有点难</option>
+            <option>中等</option>
+            <option>困难</option>
           </select>
         </div>
       </div>
@@ -61,12 +61,12 @@
 
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">食材清单（每行一条）</label>
-        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="番茄 2个&#10;鸡蛋 3个"></textarea>
+        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="食材 数量"></textarea>
       </div>
 
       <div class="mb-6">
         <label class="block text-sm font-medium mb-1">烹饪步骤（每行一步）</label>
-        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2" placeholder="鸡蛋打散炒熟盛出&#10;番茄下锅炒出汁"></textarea>
+        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2" placeholder="步骤1&#10;步骤2"></textarea>
       </div>
 
       <input type="hidden" id="editId">
@@ -81,7 +81,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
@@ -95,7 +95,6 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 图片修复
     function fixImage(file) {
       return new Promise((resolve, reject) => {
         if (!file || !file.type.startsWith('image/')) return reject('不是图片');
@@ -119,16 +118,14 @@
       });
     }
 
-    // 上传
     async function upload(file) {
       const f = await fixImage(file);
       const name = `img_${Date.now()}.jpg`;
       await sb.storage.from("recipe-images").upload(name, f, {upsert:true});
       const { data } = sb.storage.from("recipe-images").getPublicUrl(name);
-      return data.publicUrl + "?t=" + Date.now();
+      return data.publicUrl + "?_t=" + Date.now();
     }
 
-    // 选择图片
     document.getElementById('imageFile').addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
@@ -147,7 +144,6 @@
       }
     });
 
-    // 编辑回显
     async function loadEdit() {
       const id = getQuery('id');
       if (!id) return;
@@ -158,7 +154,7 @@
       const { data } = await sb.from('recipes').select('*').eq('id', id).single();
       document.getElementById('title').value = data.title || '';
       document.getElementById('description').value = data.description || '';
-      document.getElementById('category').value = data.category || '肉类';
+      document.getElementById('category').value = data.category || '其他';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
@@ -171,7 +167,6 @@
       }
     }
 
-    // 提交
     document.getElementById('recipeForm').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('editId').value;
@@ -190,15 +185,14 @@
       } else {
         await sb.from('recipes').insert([d]);
       }
-      location.href = "index.html?t="+Math.random();
+      location.href = "index.html?_t=" + Date.now();
     });
 
-    // 删除
     document.getElementById('deleteBtn').onclick = async () => {
       const id = document.getElementById('editId').value;
-      if (!id || !confirm('确定删除？')) return;
+      if (!id || !confirm('确定删除这个菜谱？')) return;
       await sb.from('recipes').delete().eq('id', id);
-      location.href = "index.html?t="+Math.random();
+      location.href = "index.html?_t=" + Date.now();
     };
 
     loadEdit();
