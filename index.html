@@ -4,29 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>凹蛋的食谱</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif}
+    .container{max-width:64rem;margin:0 auto;padding:1rem}
+    .flex{display:flex}.justify-between{justify-content:space-between}.items-center{align-items:center}
+    .text-xl{font-size:1.25rem}.font-bold{font-weight:700}
+    .btn{padding:.5rem 1rem;border-radius:.5rem;border:none;cursor:pointer}
+    .btn-green{background:#16a34a;color:white}
+    .btn-blue{background:#2563eb;color:white}
+    .btn-gray{background:#e5e7eb;color:black}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    @media(min-width:768px){.grid{grid-template-columns:repeat(3,1fr)}}
+    .card{background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden}
+    .card img{width:100%;height:8rem;object-fit:cover}
+    .card-body{padding:.75rem}
+    .badge{font-size:.75rem;background:#dcfce7;color:#166534;padding:.25rem .5rem;border-radius:.25rem}
+    .text-sm{font-size:.875rem}
+    .text-center{text-align:center}
+    .py-1{padding-top:.25rem;padding-bottom:.25rem}
+    .mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}
+    .gap-2{gap:.5rem}.gap-3{gap:1rem}
+    .flex-wrap{flex-wrap:wrap}
+    .text-gray-500{color:#6b7280}
+    .line-clamp-1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  </style>
 </head>
-<body class="bg-gray-100">
-  <div class="max-w-5xl mx-auto p-4">
-    <div class="flex justify-between items-center mb-4">
+<body>
+  <div class="container">
+    <div class="flex justify-between items-center" style="margin-bottom:1rem">
       <h1 class="text-xl font-bold">🍳 凹蛋的食谱</h1>
-      <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ 新增菜谱</a>
+      <a href="edit.html" class="btn btn-green">+ 新增菜谱</a>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-5" id="categoryButtons">
-      <button data-cat="all" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm">全部</button>
-      <button data-cat="猪肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">猪肉</button>
-      <button data-cat="牛肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">牛肉</button>
-      <button data-cat="鸡肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">鸡肉</button>
-      <button data-cat="虾" class="px-3 py-1.5 rounded bg-gray-200 text-sm">虾</button>
-      <button data-cat="蔬菜" class="px-3 py-1.5 rounded bg-gray-200 text-sm">蔬菜</button>
-      <button data-cat="其他海鲜" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他海鲜</button>
-      <button data-cat="其他" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他</button>
+    <div class="flex flex-wrap gap-2" style="margin-bottom:1.25rem" id="categoryButtons">
+      <button data-cat="all" class="btn btn-green">全部</button>
+      <button data-cat="猪肉" class="btn btn-gray">猪肉</button>
+      <button data-cat="牛肉" class="btn btn-gray">牛肉</button>
+      <button data-cat="鸡肉" class="btn btn-gray">鸡肉</button>
+      <button data-cat="虾" class="btn btn-gray">虾</button>
+      <button data-cat="蔬菜" class="btn btn-gray">蔬菜</button>
+      <button data-cat="其他海鲜" class="btn btn-gray">其他海鲜</button>
+      <button data-cat="其他" class="btn btn-gray">其他</button>
     </div>
 
-    <div id="recipeList" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      加载中...
-    </div>
+    <div id="recipeList" class="grid">加载中...</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -35,59 +56,36 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 每次都从数据库拉最新数据
     async function loadRecipes(filterCat = "all") {
-      const { data, error } = await sb
-        .from("recipes")
-        .select("*")
-        .order("id", { ascending: false });
-
-      if (error) {
-        document.getElementById("recipeList").innerHTML = "加载失败";
-        return;
-      }
-
+      const { data, error } = await sb.from("recipes").select("*").order("id", { ascending: false });
       let list = data || [];
-      if (filterCat !== "all") {
-        list = list.filter(item => item.category === filterCat);
-      }
-
+      if (filterCat !== "all") list = list.filter(i => i.category === filterCat);
       renderList(list);
     }
 
     function renderList(list) {
-      const container = document.getElementById("recipeList");
-      if (!list.length) {
-        container.innerHTML = "<div class='col-span-2 text-center text-gray-500 py-10'>暂无该分类菜谱</div>";
-        return;
-      }
-
-      container.innerHTML = list.map(item => `
-        <div class="bg-white rounded-xl shadow overflow-hidden">
-          ${item.cover_img ? `<img src="${item.cover_img}?_t=${Date.now()}" class="w-full h-32 object-cover">` : '<div class="w-full h-32 bg-gray-100"></div>'}
-          <div class="p-3">
-            <div class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded inline-block">${item.category}</div>
-            <h3 class="font-bold text-sm mt-1">${item.title}</h3>
-            <a href="edit.html?id=${item.id}" class="block text-center text-xs bg-blue-600 text-white py-1 rounded mt-2">编辑</a>
+      const el = document.getElementById("recipeList");
+      if (!list.length) { el.innerHTML = "<div style='grid-column:span 2;text-align:center;padding:2rem;color:#6b7280'>暂无该分类菜谱</div>"; return; }
+      el.innerHTML = list.map(i => `
+        <div class="card">
+          ${i.cover_img ? `<img src="${i.cover_img}">` : '<div style="width:100%;height:8rem;background:#f3f4f6"></div>'}
+          <div class="card-body">
+            <div class="badge">${i.category}</div>
+            <h3 class="text-sm font-bold mt-1 line-clamp-1">${i.title}</h3>
+            <a href="edit.html?id=${i.id}" style="display:block;text-align:center;font-size:.75rem;background:#2563eb;color:white;padding:.25rem;border-radius:.25rem;margin-top:.5rem">编辑</a>
           </div>
         </div>
       `).join('');
     }
 
-    // 分类点击：重新拉数据
     document.querySelectorAll("#categoryButtons button").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("#categoryButtons button").forEach(b => {
-          b.classList.remove("bg-green-600");
-          b.classList.add("bg-gray-200");
-        });
-        btn.classList.remove("bg-gray-200");
-        btn.classList.add("bg-green-600");
+      btn.onclick = () => {
+        document.querySelectorAll("#categoryButtons button").forEach(b => { b.className = "btn btn-gray"; });
+        btn.className = "btn btn-green";
         loadRecipes(btn.dataset.cat);
-      });
+      };
     });
 
-    // 初始加载
     loadRecipes();
   </script>
 </body>
