@@ -8,32 +8,31 @@
 </head>
 <body class="bg-gray-100">
   <div class="max-w-2xl mx-auto bg-white min-h-screen">
-    <div id="loading" class="p-10 text-center">加载中...</div>
-    <div id="content" class="hidden">
-      <img id="coverImg" src="" class="w-full h-60 object-cover bg-gray-200" loading="lazy">
-      <div class="p-5">
-        <h1 id="title" class="text-2xl font-bold"></h1>
-        <p id="desc" class="text-gray-500 mt-2"></p>
+    <div id="loading" class="p-10 text-center text-gray-500">加载中...</div>
+    <div id="content" class="hidden p-5">
+      <img id="detailImg" src="" class="w-full h-56 object-cover rounded-lg mb-5">
 
-        <div class="flex gap-4 mt-3 text-sm text-gray-600">
-          <span>⏱️ <span id="time"></span> 分钟</span>
-          <span>📊 难度：<span id="diff"></span></span>
-        </div>
+      <h1 id="title" class="text-2xl font-bold"></h1>
+      <p id="desc" class="text-gray-500 mt-2"></p>
 
-        <div class="mt-6">
-          <h3 class="text-lg font-semibold border-l-4 border-green-500 pl-2">食材清单</h3>
-          <ul id="ingList" class="mt-3 space-y-2"></ul>
-        </div>
+      <div class="flex gap-4 mt-3 text-sm text-gray-600">
+        <span>⏱️ 烹饪时长：<span id="time"></span> 分钟</span>
+        <span>📊 难度：<span id="diff"></span></span>
+      </div>
 
-        <div class="mt-6">
-          <h3 class="text-lg font-semibold border-l-4 border-green-500 pl-2">烹饪步骤</h3>
-          <div id="stepList" class="mt-3 space-y-4"></div>
-        </div>
+      <div class="mt-6">
+        <h3 class="text-lg font-semibold border-l-4 border-green-500 pl-3">食材清单</h3>
+        <ul id="ingList" class="mt-3 space-y-2"></ul>
+      </div>
 
-        <div class="mt-8 flex gap-3">
-          <a id="editBtn" href="" class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg">编辑菜谱</a>
-          <a href="index.html" class="flex-1 bg-gray-200 text-center py-2 rounded-lg">返回列表</a>
-        </div>
+      <div class="mt-6 mb-8">
+        <h3 class="text-lg font-semibold border-l-4 border-green-500 pl-3">烹饪步骤</h3>
+        <div id="stepList" class="mt-3 space-y-4"></div>
+      </div>
+
+      <div class="flex gap-3 pb-6">
+        <a href="" id="editBtn" class="flex-1 bg-green-600 text-white text-center py-3 rounded-lg">编辑菜谱</a>
+        <a href="index.html?t=${Math.random()}" class="flex-1 bg-gray-200 text-center py-3 rounded-lg">返回列表</a>
       </div>
     </div>
   </div>
@@ -45,57 +44,59 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
-      let p = new URLSearchParams(location.search);
+      const p = new URLSearchParams(location.search);
       return p.get(name);
     }
 
-    async function loadDetail() {
-      let id = getQuery("id");
-      if (!id) return;
-
-      const {data} = await sb
-        .from("recipes")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      document.getElementById("loading").classList.add("hidden");
-      document.getElementById("content").classList.remove("hidden");
-
-      document.getElementById("coverImg").src = data.cover_img || "https://picsum.photos/800/400";
-      document.getElementById("title").innerText = data.title;
-      document.getElementById("desc").innerText = data.description || "暂无简介";
-      document.getElementById("time").innerText = data.cook_time || 10;
-      document.getElementById("diff").innerText = data.difficulty || "普通";
-
-      let ing = data.ingredients || [];
-      let ingHtml = "";
-      ing.forEach(item => {
-        ingHtml += `<li class="flex items-center gap-2">
-          <input type="checkbox" class="w-4 h-4">
-          <span>${item}</span>
-        </li>`;
-      });
-      document.getElementById("ingList").innerHTML = ingHtml;
-
-      let step = data.steps || [];
-      let stepHtml = "";
-      step.forEach((item, idx) => {
-        stepHtml += `<div class="flex gap-3">
-          <span class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-sm font-bold">${idx+1}</span>
-          <span>${item}</span>
-        </div>`;
-      });
-      document.getElementById("stepList").innerHTML = stepHtml;
-
-      document.getElementById("editBtn").href = `edit.html?id=${id}`;
+    // 图片防缓存
+    function getCacheImgUrl(url) {
+      if(!url) return 'https://picsum.photos/800/400';
+      return url.includes('?') ? url + `&t=${Date.now()}` : url + `?t=${Date.now()}`;
     }
 
-    sb.channel("recipe-change")
-      .on("postgres_changes", {event:"*", schema:"public", table:"recipes"}, ()=>{
-        loadDetail();
-      })
-      .subscribe();
+    async function loadDetail() {
+      const id = getQuery('id');
+      if (!id) return;
+
+      const { data, error } = await sb
+        .from('recipes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) return;
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+
+      document.getElementById('detailImg').src = getCacheImgUrl(data.cover_img);
+      document.getElementById('title').innerText = data.title || '无标题';
+      document.getElementById('desc').innerText = data.description || '暂无简介';
+      document.getElementById('time').innerText = data.cook_time || 10;
+      document.getElementById('diff').innerText = data.difficulty || '简单';
+      document.getElementById('editBtn').href = `edit.html?id=${id}`;
+
+      // 食材
+      const ingredients = data.ingredients || [];
+      let ingHtml = '';
+      ingredients.forEach(item => {
+        ingHtml += `<li class="pl-2 border-l-2 border-green-400">${item}</li>`;
+      });
+      document.getElementById('ingList').innerHTML = ingHtml;
+
+      // 步骤
+      const steps = data.steps || [];
+      let stepHtml = '';
+      steps.forEach((item, idx) => {
+        stepHtml += `
+          <div class="flex gap-3">
+            <span class="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center shrink-0">${idx+1}</span>
+            <span>${item}</span>
+          </div>
+        `;
+      });
+      document.getElementById('stepList').innerHTML = stepHtml;
+    }
 
     loadDetail();
   </script>
