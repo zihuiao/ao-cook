@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 强制禁止浏览器缓存 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>家庭共享食谱</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -24,10 +28,11 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 给图片加时间戳防缓存
-    function getCacheImgUrl(url) {
-      if(!url) return '';
-      return url.includes('?') ? url + `&t=${Date.now()}` : url + `?t=${Date.now()}`;
+    // 每张图片强制加随机戳，彻底断缓存
+    function getFreshImgUrl(url) {
+      if(!url) return 'https://picsum.photos/400/300';
+      const rand = Math.random().toString(36);
+      return url + (url.includes('?') ? '&' : '?') + '_nocache=' + rand;
     }
 
     async function loadRecipes() {
@@ -42,18 +47,15 @@
       }
 
       if (!data.length) {
-        document.getElementById('recipeList').innerHTML = '<p class="text-center py-10 text-gray-500">暂无菜谱，快去添加吧</p>';
+        document.getElementById('recipeList').innerHTML = '<p class="text-center py-10 text-gray-500">暂无菜谱</p>';
         return;
       }
 
       let html = '';
       data.forEach(item => {
-        let imgUrl = item.cover_img 
-          ? getCacheImgUrl(item.cover_img)
-          : 'https://picsum.photos/400/300';
-
+        let imgUrl = getFreshImgUrl(item.cover_img);
         html += `
-          <a href="detail.html?id=${item.id}" class="block bg-white rounded-xl shadow overflow-hidden">
+          <a href="detail.html?id=${item.id}&_r=${Math.random()}" class="block bg-white rounded-xl shadow overflow-hidden">
             <img src="${imgUrl}" class="w-full h-48 object-cover">
             <div class="p-4">
               <h2 class="text-lg font-bold">${item.title}</h2>
@@ -69,8 +71,11 @@
       document.getElementById('recipeList').innerHTML = html;
     }
 
-    // 页面加载强制刷新
+    // 页面每次显示都重新拉取，不读缓存
     loadRecipes();
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden) loadRecipes();
+    });
   </script>
 </body>
 </html>
