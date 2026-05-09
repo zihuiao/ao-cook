@@ -56,21 +56,32 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // 每次点击分类都重新从数据库拉最新数据
     async function loadRecipes(filterCat = "all") {
       const { data, error } = await sb.from("recipes").select("*").order("id", { ascending: false });
+      if (error) {
+        document.getElementById("recipeList").innerHTML = "加载失败";
+        return;
+      }
       let list = data || [];
-      if (filterCat !== "all") list = list.filter(i => i.category === filterCat);
+      if (filterCat !== "all") {
+        // 严格匹配分类
+        list = list.filter(item => (item.category || "其他") === filterCat);
+      }
       renderList(list);
     }
 
     function renderList(list) {
       const el = document.getElementById("recipeList");
-      if (!list.length) { el.innerHTML = "<div style='grid-column:span 2;text-align:center;padding:2rem;color:#6b7280'>暂无该分类菜谱</div>"; return; }
+      if (!list.length) { 
+        el.innerHTML = "<div style='grid-column:span 2;text-align:center;padding:2rem;color:#6b7280'>暂无该分类菜谱</div>"; 
+        return; 
+      }
       el.innerHTML = list.map(i => `
         <div class="card">
           ${i.cover_img ? `<img src="${i.cover_img}">` : '<div style="width:100%;height:8rem;background:#f3f4f6"></div>'}
           <div class="card-body">
-            <div class="badge">${i.category}</div>
+            <div class="badge">${i.category || '其他'}</div>
             <h3 class="text-sm font-bold mt-1 line-clamp-1">${i.title}</h3>
             <a href="edit.html?id=${i.id}" style="display:block;text-align:center;font-size:.75rem;background:#2563eb;color:white;padding:.25rem;border-radius:.25rem;margin-top:.5rem">编辑</a>
           </div>
@@ -78,14 +89,19 @@
       `).join('');
     }
 
+    // 分类按钮点击事件
     document.querySelectorAll("#categoryButtons button").forEach(btn => {
       btn.onclick = () => {
-        document.querySelectorAll("#categoryButtons button").forEach(b => { b.className = "btn btn-gray"; });
+        document.querySelectorAll("#categoryButtons button").forEach(b => { 
+          b.className = "btn btn-gray"; 
+        });
         btn.className = "btn btn-green";
+        // 重新拉数据并筛选
         loadRecipes(btn.dataset.cat);
       };
     });
 
+    // 初始加载全部
     loadRecipes();
   </script>
 </body>
