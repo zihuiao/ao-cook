@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的家庭食谱</title>
+  <title>凹蛋的食谱</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
   <div class="max-w-5xl mx-auto p-4">
     <div class="flex justify-between items-center mb-4">
-      <h1 class="text-xl font-bold">凹蛋的食谱</h1>
+      <h1 class="text-xl font-bold">🍳 凹蛋的食谱</h1>
       <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ 新增菜谱</a>
     </div>
 
-    <!-- 分类筛选 -->
-    <div class="flex flex-wrap gap-2 mb-5">
+    <!-- 分类按钮：你指定的7个分类 -->
+    <div class="flex flex-wrap gap-2 mb-5" id="categoryButtons">
       <button onclick="filterByCategory('all')" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm">全部</button>
       <button onclick="filterByCategory('猪肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">猪肉</button>
       <button onclick="filterByCategory('牛肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">牛肉</button>
@@ -22,10 +22,10 @@
       <button onclick="filterByCategory('虾')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">虾</button>
       <button onclick="filterByCategory('蔬菜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">蔬菜</button>
       <button onclick="filterByCategory('其他海鲜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他海鲜</button>
-      <button onclick="filterByCategory('小吃')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">小吃</button>
+      <button onclick="filterByCategory('其他')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他</button>
     </div>
 
-    <!-- 食谱网格：手机 2列，平板3列 -->
+    <!-- 手机端一行2个菜谱 -->
     <div id="recipeList" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
       加载中...
     </div>
@@ -34,42 +34,66 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let allRecipes = [];
     let currentCategory = 'all';
 
-    // 加载全部
     async function loadRecipes() {
-      const { data } = await sb.from("recipes").select("*").order("id", { ascending: false });
+      const { data, error } = await sb
+        .from("recipes")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (error) {
+        console.error("加载失败：", error);
+        document.getElementById("recipeList").innerHTML = "加载失败";
+        return;
+      }
       allRecipes = data || [];
       renderList();
     }
 
-    // 分类筛选
-    function filterByCategory(cat) {
+    function filterByCategory(cat, btn) {
       currentCategory = cat;
+      // 按钮高亮
+      document.querySelectorAll("#categoryButtons button").forEach(b => {
+        b.classList.remove("bg-green-600", "text-white");
+        b.classList.add("bg-gray-200");
+      });
+      btn.classList.remove("bg-gray-200");
+      btn.classList.add("bg-green-600", "text-white");
+
       renderList();
     }
 
-    // 渲染
+    // 绑定按钮点击传自身
+    document.querySelectorAll("#categoryButtons button").forEach(btn => {
+      btn.addEventListener("click", function(){
+        let cat = this.innerText;
+        if(cat === "全部") cat = "all";
+        filterByCategory(cat, this);
+      });
+    });
+
     function renderList() {
       const container = document.getElementById("recipeList");
       let list = allRecipes;
+
       if (currentCategory !== 'all') {
         list = list.filter(item => item.category === currentCategory);
       }
 
       if (!list.length) {
-        container.innerHTML = "<div class='col-span-2 text-center text-gray-500 py-10'>暂无食谱</div>";
+        container.innerHTML = "<div class='col-span-2 text-center text-gray-500 py-10'>暂无该分类菜谱</div>";
         return;
       }
 
       container.innerHTML = list.map(item => `
         <div class="bg-white rounded-xl shadow overflow-hidden">
           ${item.cover_img ?
-            `<img src="${item.cover_img}" class="w-full h-32 object-cover">`
+            `<img src="${item.cover_img}?_t=${Date.now()}" class="w-full h-32 object-cover">`
             : '<div class="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400">无图</div>'
           }
           <div class="p-3">
