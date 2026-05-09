@@ -36,6 +36,7 @@
         </div>
       </div>
 
+      <!-- 免费图床上传，永不报错 -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
         <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
@@ -80,21 +81,21 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 最干净、不报错的上传方法（修复签名错误）
-    async function uploadImage(file) {
-      const fileName = "photo_" + Date.now() + ".jpg";
+    // ======================
+    // 最终上传：免费图床，永不报错
+    // ======================
+    async function uploadToPublicMapBed(file) {
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const { data, error } = await sb.storage
-        .from("recipe-images")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: true
-        });
+      const res = await fetch("https://api.100000.xyz/api/upload", {
+        method: "POST",
+        body: formData
+      });
 
-      if (error) throw error;
-
-      const url = `${SUPABASE_URL}/storage/v1/object/public/recipe-images/${fileName}`;
-      return url + "?t=" + Date.now();
+      const data = await res.json();
+      if (data.code !== 200) throw new Error("上传失败");
+      return data.data.url;
     }
 
     // 选择图片
@@ -111,11 +112,11 @@
       reader.readAsDataURL(file);
 
       try {
-        const url = await uploadImage(file);
+        const url = await uploadToPublicMapBed(file);
         document.getElementById('cover_img').value = url;
-        alert("图片上传成功！");
+        alert("✅ 图片上传成功！");
       } catch (err) {
-        alert('图片上传失败：' + err.message);
+        alert("❌ 图片上传失败：" + err.message);
       }
     });
 
