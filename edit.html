@@ -3,27 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>编辑菜谱 - 凹蛋的食谱</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>凹蛋的食谱</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:system-ui,sans-serif}
+    .container{max-width:42rem;margin:0 auto;background:white;padding:1.5rem;min-height:100vh}
+    .text-xl{font-size:1.25rem}.font-bold{font-weight:700}
+    .mb-1{margin-bottom:.25rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}
+    .block{display:block}
+    .text-sm{font-size:.875rem}
+    .form-input,.form-select,.form-textarea{width:100%;border:1px solid #d1d5db;border-radius:.5rem;padding:.5rem .75rem}
+    .form-textarea{resize:vertical}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    .flex{display:flex}.gap-3{gap:1rem}
+    .flex-1{flex:1}
+    .btn{width:100%;padding:.5rem 1rem;border-radius:.5rem;border:none;font-weight:500;cursor:pointer}
+    .btn-green{background:#16a34a;color:white}
+    .btn-gray{background:#e5e7eb;color:black}
+    .btn-red{background:#dc2626;color:white}
+    .text-center{text-align:center}
+    .hidden{display:none}
+    img{max-width:100%;height:8rem;object-fit:cover;border-radius:.5rem;border:1px solid #e5e7eb}
+    a{text-decoration:none;color:inherit}
+  </style>
 </head>
-<body class="bg-gray-100">
-  <div class="max-w-2xl mx-auto bg-white p-5 min-h-screen">
-    <h1 class="text-xl font-bold mb-6" id="pageTitle">新增菜谱</h1>
+<body>
+  <div class="container">
+    <h1 class="text-xl font-bold mb-4" id="pageTitle">新增菜谱</h1>
 
     <form id="recipeForm">
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">菜谱名称</label>
-        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" required>
+        <label class="block text-sm mb-1">菜谱名称</label>
+        <input type="text" id="title" class="form-input" required>
       </div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">简介描述</label>
-        <textarea id="description" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+        <label class="block text-sm mb-1">简介描述</label>
+        <textarea id="description" rows="2" class="form-textarea"></textarea>
       </div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">食材分类</label>
-        <select id="category" class="w-full border rounded-lg px-3 py-2">
+        <label class="block text-sm mb-1">食材分类</label>
+        <select id="category" class="form-select">
           <option value="猪肉">猪肉</option>
           <option value="牛肉">牛肉</option>
           <option value="鸡肉">鸡肉</option>
@@ -34,14 +54,14 @@
         </select>
       </div>
 
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid mb-4">
         <div>
-          <label class="block text-sm font-medium mb-1">烹饪时长</label>
-          <input type="number" id="cook_time" class="w-full border rounded-lg px-3 py-2" value="10" required>
+          <label class="block text-sm mb-1">烹饪时长</label>
+          <input type="number" id="cook_time" class="form-input" value="10" required>
         </div>
         <div>
-          <label class="block text-sm font-medium mb-1">难度</label>
-          <select id="difficulty" class="w-full border rounded-lg px-3 py-2">
+          <label class="block text-sm mb-1">难度</label>
+          <select id="difficulty" class="form-select">
             <option>简单</option>
             <option>中等</option>
             <option>困难</option>
@@ -50,30 +70,30 @@
       </div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">菜谱图片</label>
-        <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png" class="w-full border rounded-lg px-3 py-2">
-        <div id="previewBox" class="mt-2 hidden">
-          <img id="previewImg" class="h-32 object-cover rounded-lg border">
+        <label class="block text-sm mb-1">菜谱图片</label>
+        <input type="file" id="imageFile" accept="image/*" class="form-input">
+        <div id="previewBox" class="hidden" style="margin-top:.5rem">
+          <img id="previewImg">
         </div>
         <input type="hidden" id="cover_img">
       </div>
 
       <div class="mb-4">
-        <label class="block text-sm font-medium mb-1">食材清单</label>
-        <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2"></textarea>
+        <label class="block text-sm mb-1">食材清单</label>
+        <textarea id="ingredients" rows="4" class="form-textarea"></textarea>
       </div>
 
       <div class="mb-6">
-        <label class="block text-sm font-medium mb-1">烹饪步骤</label>
-        <textarea id="steps" rows="6" class="w-full border rounded-lg px-3 py-2"></textarea>
+        <label class="block text-sm mb-1">烹饪步骤</label>
+        <textarea id="steps" rows="6" class="form-textarea"></textarea>
       </div>
 
       <input type="hidden" id="editId">
       <div class="flex gap-3 mb-3">
-        <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg">保存提交</button>
-        <a href="index.html" class="flex-1 bg-gray-200 text-center py-2 rounded-lg">取消返回</a>
+        <button type="submit" class="flex-1 btn btn-green">保存提交</button>
+        <a href="index.html" class="flex-1 btn btn-gray text-center">取消返回</a>
       </div>
-      <button type="button" id="deleteBtn" class="w-full bg-red-600 text-white py-2 rounded-lg hidden">🗑️ 删除此菜谱</button>
+      <button type="button" id="deleteBtn" class="btn btn-red hidden">🗑️ 删除此菜谱</button>
     </form>
   </div>
 
@@ -83,38 +103,65 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    function getQuery(name) {
-      return new URLSearchParams(location.search).get(name);
-    }
-    function textToArray(str) {
-      return str.split('\n').map(i => i.trim()).filter(Boolean);
-    }
+    function getQuery(n) { return new URLSearchParams(location.search).get(n); }
+    function textToArray(s) { return s.split('\n').map(i=>i.trim()).filter(Boolean); }
 
-    // 图片上传（不变）
-    async function upload(file) {
-      const name = `img_${Date.now()}.jpg`;
-      await sb.storage.from("recipe-images").upload(name, file, {upsert:true});
-      const { data } = sb.storage.from("recipe-images").getPublicUrl(name);
-      return data.publicUrl;
-    }
-
-    document.getElementById('imageFile').addEventListener('change', async e => {
+    // 手机兼容版图片上传（修复核心）
+    document.getElementById('imageFile').addEventListener('change', async function(e) {
       const file = e.target.files[0];
       if (!file) return;
+
+      // 预览图片
       const reader = new FileReader();
       reader.onload = e => {
         document.getElementById('previewImg').src = e.target.result;
         document.getElementById('previewBox').classList.remove('hidden');
       };
       reader.readAsDataURL(file);
-      document.getElementById('cover_img').value = await upload(file);
+
+      try {
+        const img = new Image();
+        const originalURL = URL.createObjectURL(file);
+        img.src = originalURL;
+
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          let width = img.width;
+          let height = img.height;
+          const maxSize = 1000;
+
+          if (width > height && width > maxSize) {
+            height *= maxSize / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width *= maxSize / height;
+            height = maxSize;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(async (blob) => {
+            const name = `img_${Date.now()}.jpg`;
+            await sb.storage.from('recipe-images').upload(name, blob, { contentType: 'image/jpeg', upsert: true });
+            const { data } = sb.storage.from('recipe-images').getPublicUrl(name);
+            document.getElementById('cover_img').value = data.publicUrl;
+            alert("✅ 图片上传成功！");
+            URL.revokeObjectURL(originalURL);
+          }, 'image/jpeg', 0.7);
+        };
+      } catch (err) {
+        alert("❌ 上传失败");
+      }
     });
 
-    // 加载编辑数据
+    // 加载编辑内容
     async function loadEdit() {
       const id = getQuery('id');
-      if (!id) return;
-      document.getElementById('pageTitle').innerText = "编辑菜谱";
+      if(!id) return;
+      document.getElementById('pageTitle').innerText = '编辑菜谱';
       document.getElementById('editId').value = id;
       document.getElementById('deleteBtn').classList.remove('hidden');
 
@@ -124,53 +171,46 @@
       document.getElementById('category').value = data.category;
       document.getElementById('cook_time').value = data.cook_time;
       document.getElementById('difficulty').value = data.difficulty;
-      document.getElementById('ingredients').value = Array.isArray(data.ingredients) ? data.ingredients.join('\n') : '';
-      document.getElementById('steps').value = Array.isArray(data.steps) ? data.steps.join('\n') : '';
+      document.getElementById('ingredients').value = data.ingredients?.join('\n') || '';
+      document.getElementById('steps').value = data.steps?.join('\n') || '';
 
-      if (data.cover_img) {
+      if(data.cover_img) {
         document.getElementById('cover_img').value = data.cover_img;
         document.getElementById('previewImg').src = data.cover_img;
         document.getElementById('previewBox').classList.remove('hidden');
       }
     }
 
-    // 提交：强制打印日志，确认 category 真的发出去了
+    // 提交保存
     document.getElementById('recipeForm').addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('editId').value;
-
-      const formData = {
+      const d = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
         category: document.getElementById('category').value,
-        cook_time: parseInt(document.getElementById('cook_time').value),
+        cook_time: +document.getElementById('cook_time').value,
         difficulty: document.getElementById('difficulty').value,
         cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value),
       };
 
-      console.log("提交的数据：", formData); // 看这里有没有正确的 category
-
-      let res;
-      if (id) {
-        res = await sb.from('recipes').update(formData).eq('id', id);
+      if(id) {
+        await sb.from('recipes').update(d).eq('id', id);
       } else {
-        res = await sb.from('recipes').insert([formData]);
+        await sb.from('recipes').insert([d]);
       }
 
-      console.log("更新结果：", res); // 看这里报不报错
-
-      // 强制清缓存跳转
-      location.href = "index.html?_t=" + Date.now();
+      location.href = 'index.html?_t='+Date.now();
     });
 
     // 删除
     document.getElementById('deleteBtn').onclick = async () => {
       const id = document.getElementById('editId').value;
-      if (!confirm('确定删除？')) return;
+      if(!confirm('确定删除？')) return;
       await sb.from('recipes').delete().eq('id', id);
-      location.href = "index.html?_t=" + Date.now();
+      location.href = 'index.html?_t='+Date.now();
     };
 
     loadEdit();
