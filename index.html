@@ -13,9 +13,7 @@
       <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ 新增菜谱</a>
     </div>
 
-    <div id="recipeList" class="grid gap-4">
-      加载中...
-    </div>
+    <div id="recipeList" class="grid gap-4">加载中...</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -24,7 +22,6 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 加载所有食谱
     async function loadRecipes() {
       const { data, error } = await sb.from("recipes").select("*").order("id", { ascending: false });
       if (error) {
@@ -34,14 +31,12 @@
       renderList(data);
     }
 
-    // 渲染列表
     function renderList(list) {
       const container = document.getElementById("recipeList");
       if (!list.length) {
         container.innerHTML = "<div class='text-center text-gray-500 py-10'>暂无食谱，快去添加吧～</div>";
         return;
       }
-
       container.innerHTML = list.map(item => `
         <div class="bg-white rounded-xl shadow p-4">
           ${item.cover_img ? `<img src="${item.cover_img}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
@@ -51,19 +46,9 @@
             <span>⏱ ${item.cook_time} 分钟</span>
             <span>📊 ${item.difficulty}</span>
           </div>
-          <div class="flex gap-2 text-sm">
-            <a href="edit.html?id=${item.id}" class="flex-1 bg-blue-600 text-white text-center py-1.5 rounded">编辑</a>
-            <button onclick="del(${item.id})" class="flex-1 bg-red-600 text-white py-1.5 rounded">删除</button>
-          </div>
+          <a href="edit.html?id=${item.id}" class="block w-full bg-blue-600 text-white text-center py-1.5 rounded">编辑</a>
         </div>
       `).join('');
-    }
-
-    // 删除
-    async function del(id) {
-      if (!confirm("确定要删除吗？")) return;
-      await sb.from("recipes").delete().eq("id", id);
-      loadRecipes();
     }
 
     loadRecipes();
