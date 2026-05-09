@@ -36,7 +36,6 @@
         </div>
       </div>
 
-      <!-- 菜谱图片 限制只选 jpg jpeg png gif -->
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片（本地上传）</label>
         <input type="file" id="imageFile" 
@@ -85,9 +84,16 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 上传图片到存储桶
+    // 自动把中文文件名 改成 英文+数字
+    function cleanFileName(fileName) {
+      return fileName.replace(/[^a-zA-Z0-9.]/g, '_');
+    }
+
+    // 上传图片
     async function uploadImage(file) {
-      const fileName = `${Date.now()}_${file.name}`;
+      const cleanName = cleanFileName(file.name);
+      const fileName = `${Date.now()}_${cleanName}`;
+
       const { data, error } = await sb.storage
         .from('recipe-images')
         .upload(fileName, file, { contentType: file.type });
@@ -101,12 +107,11 @@
       return publicUrl;
     }
 
-    // 选择图片 + 格式校验 + 预览 + 自动上传
+    // 图片选择 + 校验
     document.getElementById('imageFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      // 允许的图片类型
       const allowTypes = ['image/jpeg','image/jpg','image/png','image/gif'];
       if (!allowTypes.includes(file.type)) {
         alert('只支持 JPG、JPEG、PNG、GIF 图片格式');
@@ -114,7 +119,7 @@
         return;
       }
 
-      // 本地预览
+      // 预览
       const reader = new FileReader();
       reader.onload = (ev) => {
         document.getElementById('previewImg').src = ev.target.result;
@@ -122,7 +127,7 @@
       };
       reader.readAsDataURL(file);
 
-      // 自动上传
+      // 上传
       try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
@@ -132,7 +137,7 @@
       }
     });
 
-    // 编辑回显数据
+    // 编辑回显
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
@@ -159,7 +164,7 @@
       document.getElementById('steps').value = arrayToText(data.steps);
     }
 
-    // 表单提交保存
+    // 提交保存
     document.getElementById('recipeForm').addEventListener('submit', async function(e){
       e.preventDefault();
 
