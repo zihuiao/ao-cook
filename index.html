@@ -35,10 +35,8 @@
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let allRecipes = [];
-    let currentCategory = "all";
-
-    async function loadRecipes() {
+    // 每次都从数据库拉最新数据
+    async function loadRecipes(filterCat = "all") {
       const { data, error } = await sb
         .from("recipes")
         .select("*")
@@ -48,17 +46,17 @@
         document.getElementById("recipeList").innerHTML = "加载失败";
         return;
       }
-      allRecipes = data || [];
-      renderList();
-    }
 
-    function renderList() {
-      const container = document.getElementById("recipeList");
-      let list = allRecipes;
-      if (currentCategory !== "all") {
-        list = list.filter(item => item.category === currentCategory);
+      let list = data || [];
+      if (filterCat !== "all") {
+        list = list.filter(item => item.category === filterCat);
       }
 
+      renderList(list);
+    }
+
+    function renderList(list) {
+      const container = document.getElementById("recipeList");
       if (!list.length) {
         container.innerHTML = "<div class='col-span-2 text-center text-gray-500 py-10'>暂无该分类菜谱</div>";
         return;
@@ -76,6 +74,7 @@
       `).join('');
     }
 
+    // 分类点击：重新拉数据
     document.querySelectorAll("#categoryButtons button").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#categoryButtons button").forEach(b => {
@@ -84,11 +83,11 @@
         });
         btn.classList.remove("bg-gray-200");
         btn.classList.add("bg-green-600");
-        currentCategory = btn.dataset.cat;
-        renderList();
+        loadRecipes(btn.dataset.cat);
       });
     });
 
+    // 初始加载
     loadRecipes();
   </script>
 </body>
