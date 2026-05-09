@@ -13,19 +13,17 @@
       <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ 新增菜谱</a>
     </div>
 
-    <!-- 分类按钮：你指定的7个分类 -->
     <div class="flex flex-wrap gap-2 mb-5" id="categoryButtons">
-      <button onclick="filterByCategory('all')" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm">全部</button>
-      <button onclick="filterByCategory('猪肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">猪肉</button>
-      <button onclick="filterByCategory('牛肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">牛肉</button>
-      <button onclick="filterByCategory('鸡肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">鸡肉</button>
-      <button onclick="filterByCategory('虾')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">虾</button>
-      <button onclick="filterByCategory('蔬菜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">蔬菜</button>
-      <button onclick="filterByCategory('其他海鲜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他海鲜</button>
-      <button onclick="filterByCategory('其他')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他</button>
+      <button data-cat="all" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm">全部</button>
+      <button data-cat="猪肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">猪肉</button>
+      <button data-cat="牛肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">牛肉</button>
+      <button data-cat="鸡肉" class="px-3 py-1.5 rounded bg-gray-200 text-sm">鸡肉</button>
+      <button data-cat="虾" class="px-3 py-1.5 rounded bg-gray-200 text-sm">虾</button>
+      <button data-cat="蔬菜" class="px-3 py-1.5 rounded bg-gray-200 text-sm">蔬菜</button>
+      <button data-cat="其他海鲜" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他海鲜</button>
+      <button data-cat="其他" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他</button>
     </div>
 
-    <!-- 手机端一行2个菜谱 -->
     <div id="recipeList" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
       加载中...
     </div>
@@ -38,7 +36,7 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let allRecipes = [];
-    let currentCategory = 'all';
+    let currentCategory = "all";
 
     async function loadRecipes() {
       const { data, error } = await sb
@@ -47,7 +45,6 @@
         .order("id", { ascending: false });
 
       if (error) {
-        console.error("加载失败：", error);
         document.getElementById("recipeList").innerHTML = "加载失败";
         return;
       }
@@ -55,33 +52,10 @@
       renderList();
     }
 
-    function filterByCategory(cat, btn) {
-      currentCategory = cat;
-      // 按钮高亮
-      document.querySelectorAll("#categoryButtons button").forEach(b => {
-        b.classList.remove("bg-green-600", "text-white");
-        b.classList.add("bg-gray-200");
-      });
-      btn.classList.remove("bg-gray-200");
-      btn.classList.add("bg-green-600", "text-white");
-
-      renderList();
-    }
-
-    // 绑定按钮点击传自身
-    document.querySelectorAll("#categoryButtons button").forEach(btn => {
-      btn.addEventListener("click", function(){
-        let cat = this.innerText;
-        if(cat === "全部") cat = "all";
-        filterByCategory(cat, this);
-      });
-    });
-
     function renderList() {
       const container = document.getElementById("recipeList");
       let list = allRecipes;
-
-      if (currentCategory !== 'all') {
+      if (currentCategory !== "all") {
         list = list.filter(item => item.category === currentCategory);
       }
 
@@ -92,23 +66,28 @@
 
       container.innerHTML = list.map(item => `
         <div class="bg-white rounded-xl shadow overflow-hidden">
-          ${item.cover_img ?
-            `<img src="${item.cover_img}?_t=${Date.now()}" class="w-full h-32 object-cover">`
-            : '<div class="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400">无图</div>'
-          }
+          ${item.cover_img ? `<img src="${item.cover_img}?_t=${Date.now()}" class="w-full h-32 object-cover">` : '<div class="w-full h-32 bg-gray-100"></div>'}
           <div class="p-3">
-            <div class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded inline-block mb-1">
-              ${item.category || '未分类'}
-            </div>
-            <h3 class="font-bold text-sm line-clamp-1">${item.title}</h3>
-            <p class="text-xs text-gray-500 mt-1 line-clamp-1">${item.description || ''}</p>
-            <a href="edit.html?id=${item.id}" class="block text-center text-xs bg-blue-600 text-white py-1 rounded mt-2">
-              查看/编辑
-            </a>
+            <div class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded inline-block">${item.category}</div>
+            <h3 class="font-bold text-sm mt-1">${item.title}</h3>
+            <a href="edit.html?id=${item.id}" class="block text-center text-xs bg-blue-600 text-white py-1 rounded mt-2">编辑</a>
           </div>
         </div>
       `).join('');
     }
+
+    document.querySelectorAll("#categoryButtons button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#categoryButtons button").forEach(b => {
+          b.classList.remove("bg-green-600");
+          b.classList.add("bg-gray-200");
+        });
+        btn.classList.remove("bg-gray-200");
+        btn.classList.add("bg-green-600");
+        currentCategory = btn.dataset.cat;
+        renderList();
+      });
+    });
 
     loadRecipes();
   </script>
