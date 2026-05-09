@@ -13,7 +13,7 @@
     <form id="recipeForm">
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱名称</label>
-        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名" required>
+        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名">
       </div>
 
       <div class="mb-4">
@@ -37,6 +37,15 @@
       </div>
 
       <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">菜谱图片</label>
+        <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png,image/gif" class="w-full border rounded-lg px-3 py-2">
+        <div id="previewBox" class="mt-2 hidden">
+          <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
+        </div>
+        <input type="hidden" id="cover_img">
+      </div>
+
+      <div class="mb-4">
         <label class="block text-sm font-medium mb-1">食材清单（每行一条）</label>
         <textarea id="ingredients" rows="4" class="w-full border rounded-lg px-3 py-2" placeholder="番茄 2个&#10;鸡蛋 3个"></textarea>
       </div>
@@ -57,7 +66,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTk3ODAsImV4cCI6MjA5Mzc3NzM4MH0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
@@ -71,43 +80,106 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    async function loadEditData() {
-      let id = getQuery('id');
-      if(!id) return;
+    // 清理中文文件名
+    function cleanFileName(name){
+      return name.replace(/[^\w.]/g,'_');
+    }
 
+    // 上传图片到 Supabase 存储桶
+    async function uploadImage(file){
+      const safeName = cleanFileName(file.name);
+      const fileName = Date.now() + '_' + safeName;
+
+      const { error } = await sb.storage
+        .from('recipe-images')
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: true
+        });
+
+      if(error) throw error;
+
+      const { data } = sb.storage.from('recipe-images').getPublicUrl(fileName);
+      // 加时间戳防缓存
+      return data.publicUrl + '?t=' + Date.now();
+    }
+
+    // 选图预览+上传
+    document.getElementById('imageFile').addEventListener('change',async e=>{
+      const file = e.target.files[0];
+      if(!file) return;
+
+      const allow = ['image/jpeg','image/jpg','image/png','image/gif'];
+      if(!allow.includes(file.type)){
+        alert('仅支持 JPG/PNG/GIF');
+        return;
+      }
+
+      // 本地预览
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        document.getElementById('previewImg').src = ev.target.result;
+        document.getElementById('previewBox').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      // 上传
+      try{
+        const url = await uploadImage(file);
+        document.getElementById('cover_img').value = url;
+        alert('图片上传成功');
+      }catch(err){
+        alert('图片上传失败：' + err.message);
+      }
+    });
+
+    // 编辑回显
+    async function loadEditData(){
+      const id = getQuery('id');
+      if(!id) return;
       document.getElementById('pageTitle').innerText = '编辑菜谱';
       document.getElementById('editId').value = id;
 
-      const {data} = await sb.from('recipes').select('*').eq('id', id).single();
+      const { data } = await sb.from('recipes').select('*').eq('id',id).single();
+      if(!data) return;
 
-      document.getElementById('title').value = data.title || '';
-      document.getElementById('description').value = data.description || '';
-      document.getElementById('cook_time').value = data.cook_time || 10;
-      document.getElementById('difficulty').value = data.difficulty || '简单';
+      document.getElementById('title').value = data.title||'';
+      document.getElementById('description').value = data.description||'';
+      document.getElementById('cook_time').value = data.cook_time||10;
+      document.getElementById('difficulty').value = data.difficulty||'简单';
+
+      if(data.cover_img){
+        const imgUrl = data.cover_img + '&t=' + Date.now();
+        document.getElementById('cover_img').value = imgUrl;
+        document.getElementById('previewImg').src = imgUrl;
+        document.getElementById('previewBox').classList.remove('hidden');
+      }
+
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
     }
 
-    document.getElementById('recipeForm').addEventListener('submit', async function(e){
+    // 提交保存
+    document.getElementById('recipeForm').addEventListener('submit',async e=>{
       e.preventDefault();
-
-      let id = document.getElementById('editId').value;
-      let postData = {
+      const id = document.getElementById('editId').value;
+      const post = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
         cook_time: Number(document.getElementById('cook_time').value),
         difficulty: document.getElementById('difficulty').value,
+        cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
         steps: textToArray(document.getElementById('steps').value)
       };
 
       if(id){
-        await sb.from('recipes').update(postData).eq('id',id);
+        await sb.from('recipes').update(post).eq('id',id);
       }else{
-        await sb.from('recipes').insert([postData]);
+        await sb.from('recipes').insert([post]);
       }
-
-      location.href = 'index.html?t='+Math.random();
+      // 强制清缓存跳转
+      location.href = 'index.html?t=' + Math.random();
     });
 
     loadEditData();
