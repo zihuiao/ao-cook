@@ -68,7 +68,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6ZWVkQ";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTk3ODAsImV4cCI6MjA5Mzc3NzM4MH0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
@@ -84,12 +84,12 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 修复：自动清理中文文件名
+    // 自动清理中文文件名
     function cleanFileName(fileName) {
       return fileName.replace(/[^a-zA-Z0-9.]/g, '_');
     }
 
-    // 修复：上传图片 + 防缓存
+    // 上传图片（修复缓存+文件名）
     async function uploadImage(file) {
       const cleanName = cleanFileName(file.name);
       const fileName = `${Date.now()}_${cleanName}`;
@@ -104,7 +104,7 @@
         .from('recipe-images')
         .getPublicUrl(fileName);
 
-      // 强制加时间戳，解决手机不刷新
+      // 强制防缓存
       return publicUrl + "?t=" + Date.now();
     }
 
@@ -128,7 +128,7 @@
       };
       reader.readAsDataURL(file);
 
-      // 自动上传
+      // 上传
       try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
@@ -138,7 +138,7 @@
       }
     });
 
-    // 加载编辑数据
+    // 编辑回显
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
