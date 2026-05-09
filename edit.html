@@ -68,7 +68,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6ZWVkQ";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     function getQuery(name) {
@@ -84,12 +84,12 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 自动把中文文件名 改成 英文+数字
+    // 修复：自动清理中文文件名
     function cleanFileName(fileName) {
       return fileName.replace(/[^a-zA-Z0-9.]/g, '_');
     }
 
-    // 上传图片
+    // 修复：上传图片 + 防缓存
     async function uploadImage(file) {
       const cleanName = cleanFileName(file.name);
       const fileName = `${Date.now()}_${cleanName}`;
@@ -104,10 +104,11 @@
         .from('recipe-images')
         .getPublicUrl(fileName);
 
-      return publicUrl;
+      // 强制加时间戳，解决手机不刷新
+      return publicUrl + "?t=" + Date.now();
     }
 
-    // 图片选择 + 校验
+    // 图片选择 + 上传
     document.getElementById('imageFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -127,7 +128,7 @@
       };
       reader.readAsDataURL(file);
 
-      // 上传
+      // 自动上传
       try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
@@ -137,7 +138,7 @@
       }
     });
 
-    // 编辑回显
+    // 加载编辑数据
     async function loadEditData() {
       let id = getQuery('id');
       if(!id) return;
@@ -156,8 +157,9 @@
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
       if (data.cover_img) {
-        document.getElementById('cover_img').value = data.cover_img;
-        document.getElementById('previewImg').src = data.cover_img;
+        let imgUrl = data.cover_img + "?t=" + Date.now();
+        document.getElementById('cover_img').value = imgUrl;
+        document.getElementById('previewImg').src = imgUrl;
         document.getElementById('previewBox').classList.remove('hidden');
       }
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
@@ -185,7 +187,7 @@
         await sb.from('recipes').insert([postData]);
       }
 
-      location.href = 'index.html';
+      location.href = 'index.html?t=' + Date.now();
     });
 
     loadEditData();
