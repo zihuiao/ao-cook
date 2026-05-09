@@ -38,7 +38,7 @@
 
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱图片</label>
-        <input type="file" id="imageFile" accept="image/jpeg,image/jpg,image/png,image/gif" class="w-full border rounded-lg px-3 py-2">
+        <input type="file" id="imageFile" accept="image/*" class="w-full border rounded-lg px-3 py-2">
         <div id="previewBox" class="mt-2 hidden">
           <img id="previewImg" src="" class="h-32 object-cover rounded-lg border">
         </div>
@@ -80,78 +80,85 @@
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 清理中文文件名
-    function cleanFileName(name){
-      return name.replace(/[^\w.]/g,'_');
+    // 手机端强制压缩+旋转修复 + 清理文件名
+    function processImage(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = function() {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(
+            (blob) => {
+              const fixedFile = new File([blob], "photo_"+Date.now()+".jpg", { type: "image/jpeg" });
+              resolve(fixedFile);
+            },
+            "image/jpeg",
+            0.8
+          );
+        };
+      });
     }
 
-    // 上传图片到 Supabase 存储桶
-    async function uploadImage(file){
-      const safeName = cleanFileName(file.name);
-      const fileName = Date.now() + '_' + safeName;
+    // 上传图片（手机已修复）
+    async function uploadImage(file) {
+      const fixedFile = await processImage(file);
+      const fileName = "img_" + Date.now() + ".jpg";
 
       const { error } = await sb.storage
-        .from('recipe-images')
-        .upload(fileName, file, {
-          contentType: file.type,
-          upsert: true
-        });
+        .from("recipe-images")
+        .upload(fileName, fixedFile, { upsert: true });
 
-      if(error) throw error;
+      if (error) throw error;
 
-      const { data } = sb.storage.from('recipe-images').getPublicUrl(fileName);
-      // 加时间戳防缓存
-      return data.publicUrl + '?t=' + Date.now();
+      const { data } = sb.storage.from("recipe-images").getPublicUrl(fileName);
+      return data.publicUrl + "?t=" + Date.now();
     }
 
-    // 选图预览+上传
-    document.getElementById('imageFile').addEventListener('change',async e=>{
+    // 选择图片
+    document.getElementById('imageFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if(!file) return;
+      if (!file) return;
 
-      const allow = ['image/jpeg','image/jpg','image/png','image/gif'];
-      if(!allow.includes(file.type)){
-        alert('仅支持 JPG/PNG/GIF');
-        return;
-      }
-
-      // 本地预览
+      // 预览
       const reader = new FileReader();
-      reader.onload = ev=>{
+      reader.onload = (ev) => {
         document.getElementById('previewImg').src = ev.target.result;
         document.getElementById('previewBox').classList.remove('hidden');
       };
       reader.readAsDataURL(file);
 
-      // 上传
-      try{
+      try {
         const url = await uploadImage(file);
         document.getElementById('cover_img').value = url;
-        alert('图片上传成功');
-      }catch(err){
-        alert('图片上传失败：' + err.message);
+        alert("✅ 图片上传成功！");
+      } catch (err) {
+        alert("❌ 上传失败：" + err.message);
       }
     });
 
     // 编辑回显
-    async function loadEditData(){
-      const id = getQuery('id');
+    async function loadEditData() {
+      let id = getQuery('id');
       if(!id) return;
+
       document.getElementById('pageTitle').innerText = '编辑菜谱';
       document.getElementById('editId').value = id;
 
-      const { data } = await sb.from('recipes').select('*').eq('id',id).single();
-      if(!data) return;
+      const { data } = await sb.from('recipes').select('*').eq('id', id).single();
 
-      document.getElementById('title').value = data.title||'';
-      document.getElementById('description').value = data.description||'';
-      document.getElementById('cook_time').value = data.cook_time||10;
-      document.getElementById('difficulty').value = data.difficulty||'简单';
+      document.getElementById('title').value = data.title || '';
+      document.getElementById('description').value = data.description || '';
+      document.getElementById('cook_time').value = data.cook_time || 10;
+      document.getElementById('difficulty').value = data.difficulty || '简单';
 
-      if(data.cover_img){
-        const imgUrl = data.cover_img + '&t=' + Date.now();
-        document.getElementById('cover_img').value = imgUrl;
-        document.getElementById('previewImg').src = imgUrl;
+      if (data.cover_img) {
+        let img = data.cover_img + "&t=" + Date.now();
+        document.getElementById('cover_img').value = img;
+        document.getElementById('previewImg').src = img;
         document.getElementById('previewBox').classList.remove('hidden');
       }
 
@@ -160,10 +167,11 @@
     }
 
     // 提交保存
-    document.getElementById('recipeForm').addEventListener('submit',async e=>{
+    document.getElementById('recipeForm').addEventListener('submit', async function(e){
       e.preventDefault();
-      const id = document.getElementById('editId').value;
-      const post = {
+
+      let id = document.getElementById('editId').value;
+      let postData = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
         cook_time: Number(document.getElementById('cook_time').value),
@@ -174,12 +182,12 @@
       };
 
       if(id){
-        await sb.from('recipes').update(post).eq('id',id);
+        await sb.from('recipes').update(postData).eq('id',id);
       }else{
-        await sb.from('recipes').insert([post]);
+        await sb.from('recipes').insert([postData]);
       }
-      // 强制清缓存跳转
-      location.href = 'index.html?t=' + Math.random();
+
+      location.href = "index.html?t=" + Math.random();
     });
 
     loadEditData();
