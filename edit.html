@@ -13,7 +13,7 @@
     <form id="recipeForm">
       <div class="mb-4">
         <label class="block text-sm font-medium mb-1">菜谱名称</label>
-        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名">
+        <input type="text" id="title" class="w-full border rounded-lg px-3 py-2" placeholder="输入菜名" required>
       </div>
 
       <div class="mb-4">
@@ -24,7 +24,7 @@
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label class="block text-sm font-medium mb-1">烹饪时长(分钟)</label>
-          <input type="number" id="cook_time" class="w-full border rounded-lg px-3 py-2" value="10">
+          <input type="number" id="cook_time" class="w-full border rounded-lg px-3 py-2" value="10" required>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">难度</label>
@@ -74,123 +74,111 @@
       return p.get(name);
     }
     function textToArray(str) {
-      return str.split('\n').map(item=>item.trim()).filter(item=>item);
+      return str.split('\n').map(i => i.trim()).filter(Boolean);
     }
     function arrayToText(arr) {
       return Array.isArray(arr) ? arr.join('\n') : '';
     }
 
-    // 手机端强制压缩+旋转修复 + 清理文件名
-    function processImage(file) {
-      return new Promise((resolve) => {
+    // 手机图片修复 + 压缩
+    function fixImage(file) {
+      return new Promise(resolve => {
         const img = new Image();
         img.src = URL.createObjectURL(file);
-        img.onload = function() {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
-          canvas.toBlob(
-            (blob) => {
-              const fixedFile = new File([blob], "photo_"+Date.now()+".jpg", { type: "image/jpeg" });
-              resolve(fixedFile);
-            },
-            "image/jpeg",
-            0.8
-          );
+          canvas.toBlob(blob => {
+            const f = new File([blob], `recipe_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            resolve(f);
+          }, 'image/jpeg', 0.8);
         };
       });
     }
 
-    // 上传图片（手机已修复）
-    async function uploadImage(file) {
-      const fixedFile = await processImage(file);
-      const fileName = "img_" + Date.now() + ".jpg";
-
-      const { error } = await sb.storage
-        .from("recipe-images")
-        .upload(fileName, fixedFile, { upsert: true });
-
-      if (error) throw error;
-
-      const { data } = sb.storage.from("recipe-images").getPublicUrl(fileName);
-      return data.publicUrl + "?t=" + Date.now();
+    // 上传图片
+    async function upload(file) {
+      if (!file) return '';
+      const img = await fixImage(file);
+      const name = `img_${Date.now()}.jpg`;
+      await sb.storage.from('recipe-images').upload(name, img, { upsert: true });
+      const { data } = sb.storage.from('recipe-images').getPublicUrl(name);
+      return data.publicUrl + '?t=' + Date.now();
     }
 
-    // 选择图片
-    document.getElementById('imageFile').addEventListener('change', async (e) => {
+    // 选择图片预览 + 自动上传
+    document.getElementById('imageFile').addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
 
       // 预览
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        document.getElementById('previewImg').src = ev.target.result;
+      reader.onload = e => {
+        document.getElementById('previewImg').src = e.target.result;
         document.getElementById('previewBox').classList.remove('hidden');
       };
       reader.readAsDataURL(file);
 
+      // 上传
       try {
-        const url = await uploadImage(file);
+        const url = await upload(file);
         document.getElementById('cover_img').value = url;
-        alert("✅ 图片上传成功！");
+        alert("✅ 图片上传成功");
       } catch (err) {
         alert("❌ 上传失败：" + err.message);
       }
     });
 
     // 编辑回显
-    async function loadEditData() {
-      let id = getQuery('id');
-      if(!id) return;
-
-      document.getElementById('pageTitle').innerText = '编辑菜谱';
+    async function loadEdit() {
+      const id = getQuery('id');
+      if (!id) return;
+      document.getElementById('pageTitle').textContent = '编辑菜谱';
       document.getElementById('editId').value = id;
 
       const { data } = await sb.from('recipes').select('*').eq('id', id).single();
-
       document.getElementById('title').value = data.title || '';
       document.getElementById('description').value = data.description || '';
       document.getElementById('cook_time').value = data.cook_time || 10;
       document.getElementById('difficulty').value = data.difficulty || '简单';
-
-      if (data.cover_img) {
-        let img = data.cover_img + "&t=" + Date.now();
-        document.getElementById('cover_img').value = img;
-        document.getElementById('previewImg').src = img;
-        document.getElementById('previewBox').classList.remove('hidden');
-      }
-
       document.getElementById('ingredients').value = arrayToText(data.ingredients);
       document.getElementById('steps').value = arrayToText(data.steps);
+
+      if (data.cover_img) {
+        const url = data.cover_img + '&t=' + Date.now();
+        document.getElementById('cover_img').value = url;
+        document.getElementById('previewImg').src = url;
+        document.getElementById('previewBox').classList.remove('hidden');
+      }
     }
 
     // 提交保存
-    document.getElementById('recipeForm').addEventListener('submit', async function(e){
+    document.getElementById('recipeForm').addEventListener('submit', async e => {
       e.preventDefault();
-
-      let id = document.getElementById('editId').value;
-      let postData = {
+      const id = document.getElementById('editId').value;
+      const data = {
         title: document.getElementById('title').value,
         description: document.getElementById('description').value,
-        cook_time: Number(document.getElementById('cook_time').value),
+        cook_time: +document.getElementById('cook_time').value,
         difficulty: document.getElementById('difficulty').value,
         cover_img: document.getElementById('cover_img').value,
         ingredients: textToArray(document.getElementById('ingredients').value),
-        steps: textToArray(document.getElementById('steps').value)
+        steps: textToArray(document.getElementById('steps').value),
       };
 
-      if(id){
-        await sb.from('recipes').update(postData).eq('id',id);
-      }else{
-        await sb.from('recipes').insert([postData]);
+      if (id) {
+        await sb.from('recipes').update(data).eq('id', id);
+      } else {
+        await sb.from('recipes').insert([data]);
       }
 
-      location.href = "index.html?t=" + Math.random();
+      location.href = 'index.html?t=' + Math.random();
     });
 
-    loadEditData();
+    loadEdit();
   </script>
 </body>
 </html>
