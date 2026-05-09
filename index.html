@@ -7,46 +7,81 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
-  <div class="max-w-2xl mx-auto p-4">
+  <div class="max-w-5xl mx-auto p-4">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-xl font-bold">凹蛋的食谱</h1>
       <a href="edit.html" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">+ 新增菜谱</a>
     </div>
 
-    <div id="recipeList" class="grid gap-4">加载中...</div>
+    <!-- 分类筛选 -->
+    <div class="flex flex-wrap gap-2 mb-5">
+      <button onclick="filterByCategory('all')" class="px-3 py-1.5 rounded bg-green-600 text-white text-sm">全部</button>
+      <button onclick="filterByCategory('猪肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">猪肉</button>
+      <button onclick="filterByCategory('牛肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">牛肉</button>
+      <button onclick="filterByCategory('鸡肉')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">鸡肉</button>
+      <button onclick="filterByCategory('虾')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">虾</button>
+      <button onclick="filterByCategory('蔬菜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">蔬菜</button>
+      <button onclick="filterByCategory('其他海鲜')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">其他海鲜</button>
+      <button onclick="filterByCategory('小吃')" class="px-3 py-1.5 rounded bg-gray-200 text-sm">小吃</button>
+    </div>
+
+    <!-- 食谱网格：手机 2列，平板3列 -->
+    <div id="recipeList" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      加载中...
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = "https://cjptowfejvdchopcsjzx.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsJlZiI6ImNqcHRvd2ZlanZkY2hvcGNzanp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjE3ODIsImV4cCI6MjA5Mzc5Nzc4Mn0.DHhS17dTRnBnzrzHhY6yyzGSUzqk2O7dlUc8lq9UmVc";
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let allRecipes = [];
+    let currentCategory = 'all';
+
+    // 加载全部
     async function loadRecipes() {
-      const { data, error } = await sb.from("recipes").select("*").order("id", { ascending: false });
-      if (error) {
-        document.getElementById("recipeList").innerHTML = "加载失败";
-        return;
-      }
-      renderList(data);
+      const { data } = await sb.from("recipes").select("*").order("id", { ascending: false });
+      allRecipes = data || [];
+      renderList();
     }
 
-    function renderList(list) {
+    // 分类筛选
+    function filterByCategory(cat) {
+      currentCategory = cat;
+      renderList();
+    }
+
+    // 渲染
+    function renderList() {
       const container = document.getElementById("recipeList");
+      let list = allRecipes;
+      if (currentCategory !== 'all') {
+        list = list.filter(item => item.category === currentCategory);
+      }
+
       if (!list.length) {
-        container.innerHTML = "<div class='text-center text-gray-500 py-10'>暂无食谱，快去添加吧～</div>";
+        container.innerHTML = "<div class='col-span-2 text-center text-gray-500 py-10'>暂无食谱</div>";
         return;
       }
+
       container.innerHTML = list.map(item => `
-        <div class="bg-white rounded-xl shadow p-4">
-          ${item.cover_img ? `<img src="${item.cover_img}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
-          <h3 class="font-bold text-lg mb-1">${item.title}</h3>
-          <p class="text-sm text-gray-500 mb-2">${item.description || '无描述'}</p>
-          <div class="text-xs text-gray-400 flex gap-2 mb-3">
-            <span>⏱ ${item.cook_time} 分钟</span>
-            <span>📊 ${item.difficulty}</span>
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+          ${item.cover_img ?
+            `<img src="${item.cover_img}" class="w-full h-32 object-cover">`
+            : '<div class="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400">无图</div>'
+          }
+          <div class="p-3">
+            <div class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded inline-block mb-1">
+              ${item.category || '未分类'}
+            </div>
+            <h3 class="font-bold text-sm line-clamp-1">${item.title}</h3>
+            <p class="text-xs text-gray-500 mt-1 line-clamp-1">${item.description || ''}</p>
+            <a href="edit.html?id=${item.id}" class="block text-center text-xs bg-blue-600 text-white py-1 rounded mt-2">
+              查看/编辑
+            </a>
           </div>
-          <a href="edit.html?id=${item.id}" class="block w-full bg-blue-600 text-white text-center py-1.5 rounded">编辑</a>
         </div>
       `).join('');
     }
